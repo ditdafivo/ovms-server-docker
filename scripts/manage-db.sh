@@ -13,14 +13,14 @@
 #       addcar ID pass [owner-name] : add vehicle for owner with given name
 #       delcar ID                   : delete vehicle
 #       adduser name [password] 
+#       passwd name password        : update password of existing user
 #       deluser name
 #       list                        : list all cars and owners
 #
 #
-# Requires: mysql-client, htpasswd (apache2-utils), sed, base64, netcat
+# Requires: mysql-client, sed, base64, netcat
 #
-# Owner passwords are stored as bcrypt hash, like in Drupal 8-10
-# This is NOT consistent with the AuthDrupal.pm module, which expects a Drupal 7 hash
+# Owner passwords are stored as plain text for AuthDbSimple.
 #
 # zbchristian@github  2025
 #
@@ -58,7 +58,8 @@ if [[ $# -eq 0 ]]; then
     echo "  addcar ID pass [owner-name] : add the car with name=ID and password=pass (as defined in OVMS module)." 
     echo "                                owner-name is optional. Owner will be created if not existing"
     echo "  delcar ID                   : delete the car with name=ID from the DB"
-    echo "  adduser name [password]     : add a user to the DB. Usually not needed. Use addcar and provide the user name."
+    echo "  adduser name [password]     : add a user to the DB with a plaintext password for AuthDbSimple"
+    echo "  passwd name password        : update password of an existing user"
     echo "  deluser name                : remove a user from the DB"
     echo "  list                        : list the cars and owners stored in the DB"
     exit 0
@@ -82,11 +83,6 @@ _get_ownerid() {
 _get_car() {
     # get the car entry - empty if not existing
     $mysqlcmd -e "SELECT * FROM ovms_cars WHERE vehicleid='$1'" | grep $carID
-}
-
-_pw_hash() {
-    # get Bcrypt hash of password
-    htpasswd -bnBC 10 "" $1 | tr -d ':\n'
 }
 
 _gen_pw() {
@@ -160,15 +156,29 @@ case "$1" in
         fi
         name="$2"
         [ $# -eq 3 ] && pass="$3"  || pass=$(_gen_pw)
-        pwhash=$(_pw_hash "$pass")
         uexists=$(_get_ownerid $name)
         if [ -z "$uexists" ]; then
             id=$($mysqlcmd -e "SELECT max(owner) FROM ovms_owners" | grep -o "[0-9]*")
             [ -z $id ] && id=1 || ((++id))
-            $mysqlcmd -e "INSERT INTO ovms_owners (owner, name, pass, status) VALUES('$id', '$name', '$pwhash', 1)"
+            $mysqlcmd -e "INSERT INTO ovms_owners (owner, name, pass, status) VALUES('$id', '$name', '$pass', 1)"
             echo "User $name added to DB with password $pass and ownerID $id"
         else
             echo "User $name already exists ... exit"
+        fi
+        ;;
+    passwd)
+        if [[ $# -ne 3 ]]; then
+            echo "Usage: passwd name password ..."
+            exit 1
+        fi
+        name="$2"
+        pass="$3"
+        uexists=$(_get_ownerid $name)
+        if [ -z "$uexists" ]; then
+            echo "User $name does not exist ... exit"
+        else
+            $mysqlcmd -e "UPDATE ovms_owners SET pass='$pass' WHERE name='$name'"
+            echo "Password updated for user $name"
         fi
         ;;
     deluser)

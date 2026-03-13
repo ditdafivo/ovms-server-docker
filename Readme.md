@@ -69,8 +69,11 @@ delcar ID
 : delete the car with name=ID from the DB
 
 adduser name [password]     
-: add a user to the DB
+: add a user to the DB (plaintext password for AuthDbSimple)
 : Usually not needed: use addcar and provide the user name.
+
+passwd name password
+: update the password of an existing user
 
 deluser name                
 : remove a user from the DB
@@ -84,10 +87,8 @@ Passwords
 The password for the cars are stored as clear text in the database. 
 This is the pre-shared key for the RC4 encryption of the communication between car, server and App. 
 
-Owner passwords are stored as a Bcrypt hash in the DB, but never used in this setup. They might get important, if 
-the HTTP API is needed (enable modules `ApiHttp.pm` and `ApiHttpd.pm`) on port 6868 and 6869. In this case the
-password is required for authentification. Since the utilized hashing is not compatible with the included `AuthDrupal.pm` module,
-a corresponding password encoding has to be provided.
+Owner passwords are stored as **plaintext** in the DB for compatibility with `AuthDbSimple`.
+The HTTP API on port 6868/6869 authenticates against `ovms_owners.pass` using direct string comparison.
 
 ### HTTP API authentication (port 6868)
 
