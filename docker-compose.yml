@@ -13,8 +13,8 @@ services:
         - ${OVMS_PATH:-.}/conf:/usr/src/app/server/conf:ro
     ports:
         - 6867:6867
+        - 6868:6868
 #        - 6870:6870
-#        - 6868:6868
 #        - 6869:6869
     environment:
         MYSQL_ROOT_PASSWORD: ${OVMS_DB_ROOT_PW}

@@ -89,6 +89,37 @@ the HTTP API is needed (enable modules `ApiHttp.pm` and `ApiHttpd.pm`) on port 6
 password is required for authentification. Since the utilized hashing is not compatible with the included `AuthDrupal.pm` module,
 a corresponding password encoding has to be provided.
 
+### HTTP API authentication (port 6868)
+
+The HTTP API (`ApiHttp` + `ApiHttpCore`) **requires an authentication provider plugin**.
+If no `Auth*` plugin is loaded, the server cannot register the `Authenticate()` function and every `/api/*` request will return:
+
+```
+HTTP/1.0 401 Unauthorized
+Authentication failed
+```
+
+For simple private/LAN setups you can use `AuthDbSimple` (plaintext passwords stored in `ovms_owners.pass`).
+Add it to `conf/ovms_server.conf`:
+
+```ini
+[plugins]
+load=<<EOT
+...
+ApiHttp
+ApiHttpCore
+AuthDbSimple
+EOT
+```
+
+Then set a plaintext password for an owner and authenticate using query parameters:
+
+```bash
+curl "http://127.0.0.1:6868/api/vehicles?username=<USER>&password=<PASS>"
+```
+
+⚠️ `AuthDbSimple` is intended for private environments only; do not expose port 6868 to the public internet.
+
 Using TLS Transport Encryption on Port 6870
 -------------------------------------------
 The configuration in `docker-compose-tls.yml` assumes Traefik as a reverse proxy.
