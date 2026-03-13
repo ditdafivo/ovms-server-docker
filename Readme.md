@@ -118,6 +118,28 @@ Then set a plaintext password for an owner and authenticate using query paramete
 curl "http://127.0.0.1:6868/api/vehicles?username=<USER>&password=<PASS>"
 ```
 
+### HTTP Basic Auth header support (recommended)
+
+This docker image applies a small patch to OVMS `ApiHttpCore.pm` at build time to also accept the standard HTTP header:
+
+```
+Authorization: Basic base64(username:password)
+```
+
+This allows clients to authenticate **without** putting credentials into the URL:
+
+```bash
+curl -u <USER>:<PASS> "http://127.0.0.1:6868/api/vehicles"
+```
+
+You can also obtain a session cookie using Basic auth:
+
+```bash
+curl -i -u <USER>:<PASS> "http://127.0.0.1:6868/api/cookie"
+```
+
+⚠️ Basic auth is only secure when used over TLS. For anything beyond a trusted LAN, use HTTPS (port 6869) or put the service behind a TLS reverse proxy.
+
 ⚠️ `AuthDbSimple` is intended for private environments only; do not expose port 6868 to the public internet.
 
 Using TLS Transport Encryption on Port 6870
@@ -129,3 +151,13 @@ The corresponding domain name and path to the Lets Encrypt store has to be speci
 The additional container `ovms-cert` dumps the private key and the certificate into `conf/ovms_server.pem`, which is used by the OVMS server.
 
 Be aware, that the TLS connection to the OVMS module requires, that the corresponding root certificate for Lets Encrypt is present. Otherwise the connection will fail.
+
+Upstream pinning
+---------------
+
+The Dockerfile pins the upstream Open-Vehicle-Server repository to a specific commit for reproducible builds.
+You can override the ref at build time:
+
+```bash
+sudo docker compose build --build-arg OVMS_REF=<sha> ovms-server
+```

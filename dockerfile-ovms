@@ -27,12 +27,29 @@ RUN cpanm AnyEvent::HTTPD
 RUN cpanm Net::APNS::Simple
 
 RUN mkdir -p /usr/src/app
-RUN git clone --depth 1 https://github.com/openvehicles/Open-Vehicle-Server.git /usr/src/app/ovms
+
+# Pin the upstream OVMS server source for reproducible builds.
+# You can override this at build time with:
+#   docker compose build --build-arg OVMS_REF=<sha>
+ARG OVMS_REF=4471da2cd71e15e824ffdfcef12e92e281e6ec07
+
+# Do a shallow fetch of the exact ref (fast + reproducible).
+RUN mkdir -p /usr/src/app/ovms \
+  && git -C /usr/src/app/ovms init \
+  && git -C /usr/src/app/ovms remote add origin https://github.com/openvehicles/Open-Vehicle-Server.git \
+  && git -C /usr/src/app/ovms fetch --depth 1 origin ${OVMS_REF} \
+  && git -C /usr/src/app/ovms checkout FETCH_HEAD
+
 RUN cp -r /usr/src/app/ovms/v3/server  /usr/src/app/server
 RUN rm -rf /usr/src/app/ovms
 
 # CRYPT::RC4::XS not available and cpanm fails -> utilize Crypt::RC4 instead
 RUN find /usr/src/app -regex '.*\.\(pl\|pm\)' -exec sed -i -e 's/RC4::XS/RC4/g' {} \;
+
+# Apply local patches (fails the build if upstream changed and patch doesn't apply cleanly)
+COPY ./patches /usr/src/app/patches
+RUN cd /usr/src/app/server \
+  && find . -name ApiHttpCore.pm && git apply -p3 --verbose ../patches/0001-apihttpcore-basic-auth.patch
 
 COPY ./scripts/manage-db.sh  /usr/src/app
 RUN chmod +x /usr/src/app/manage-db.sh
